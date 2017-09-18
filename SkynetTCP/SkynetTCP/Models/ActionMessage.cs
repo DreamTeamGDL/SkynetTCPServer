@@ -2,11 +2,11 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace TCPServer.Models
+namespace SkynetTCP.Models
 {
     class ActionMessage
     {
-        public string Action { get; set; }
+        public ACTIONS Action { get; set; }
         public string Name { get; set; }
         public string Do { get; set; }
     }

@@ -7,21 +7,25 @@ using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
 using Microsoft.Azure.ServiceBus;
-
-using TCPServer.Models;
 using System.Threading;
 
-namespace TCPServer.Core
+using SkynetTCP.Models;
+using SkynetTCP.Services.Interfaces;
+
+namespace SkynetTCP.Core
 {
     public class SkyNetTcpServer
     {
+        private readonly ISerializerService _serializer;
         List<Task> taskList = new List<Task>();
         TcpListener tcpListener = new TcpListener(new IPEndPoint(IPAddress.Any, 25000));
         ConcurrentDictionary<string, NetworkStream> roomDic = new ConcurrentDictionary<string, NetworkStream>();
         IQueueClient queue;
 
-        public SkyNetTcpServer(string queueName)
+        public SkyNetTcpServer(ISerializerService serializer, string queueName)
         {
+            _serializer = serializer;
+
             queue = new QueueClient("Endpoint=sb://skynet.servicebus.windows.net/;SharedAccessKeyName=Rasp;SharedAccessKey=sn5Oiv67fiKXRz1iM5Zzf0jz24134PF+qoR9mmM4NGQ=;", "Queue1");
             queue.RegisterMessageHandler(ReceiveMessageFromQueue, new MessageHandlerOptions(HandleError)
             {
@@ -47,33 +51,23 @@ namespace TCPServer.Core
 
         private async Task ReceiveMessageFromQueue(Message message, CancellationToken token)
         {
-            var json = Encoding.UTF8.GetString(message.Body);
-
-            Console.WriteLine(json);
-
-            var obj = JsonConvert.DeserializeObject<ActionMessage>(json);
+            var obj = _serializer.Deserialize<ActionMessage>(message.Body);
 
             await ProcessMessage(obj);
-
-
+            
             await queue.CompleteAsync(message.SystemProperties.LockToken);
         }
 
         private async Task ReceiveClient(TcpClient tcpClient)
         {
             var bytes = new byte[256];
-            string data = null;
 
             var stream = tcpClient.GetStream();
 
             int i;
             while ((i = await stream.ReadAsync(bytes, 0, bytes.Length)) != 0)
             {
-                data = Encoding.ASCII.GetString(bytes, 0, i);
-
-                Console.WriteLine(data);
-
-                var obj = JsonConvert.DeserializeObject<Models.ActionMessage>(data);
+                var obj = _serializer.Deserialize<ActionMessage>(bytes);
 
                 await ProcessMessage(obj, stream);
             }
@@ -83,7 +77,10 @@ namespace TCPServer.Core
         {
             switch (actionMessage?.Action)
             {
-                case "Connect":
+                case ACTIONS.CONFIGURE:
+                    await SendConfig(actionMessage);
+                    break;
+                case ACTIONS.CONNECT:
                     {
                         if(stream != null)
                         {
@@ -91,20 +88,30 @@ namespace TCPServer.Core
                         }
                     }
                     break;
-                case "Tell":
-                    await SendToClient(actionMessage.Name, actionMessage.Do);
+                case ACTIONS.TELL:
+                    await SendToClient(actionMessage);
                     break;
                 default:
                     break;
             }
         }
 
-        private async Task SendToClient(string clientName, string thingTodo)
+        private Task GetConfig()
         {
-            if (roomDic.ContainsKey(clientName))
+            throw new NotImplementedException();
+        }
+
+        private Task SendConfig(ActionMessage actionMessage)
+        {
+            throw new NotImplementedException();
+        }
+
+        private async Task SendToClient(ActionMessage message)
+        {
+            if (roomDic.ContainsKey(message.Name))
             {
-                var buffer = Encoding.ASCII.GetBytes(thingTodo);
-                await roomDic[clientName].WriteAsync(buffer, 0, buffer.Length);
+                var buffer = _serializer.Serialize(message);
+                await roomDic[message.Name].WriteAsync(buffer, 0, buffer.Length);
             }
         }
     }

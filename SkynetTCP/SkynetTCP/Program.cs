@@ -2,17 +2,20 @@
 using System.Threading;
 using System.Threading.Tasks;
 
-using TCPServer.Core;
+using SkynetTCP.Core;
+using SkynetTCP.Services;
 
-namespace TCPServer
+namespace SkynetTCP
 {
     class Program
     {
         static void Main(string[] args)
         {
-            var server = new SkyNetTcpServer("Queue1");
+            var server = new SkyNetTcpServer(new SerializerService(), "Queue1");
+            var udpServer = new SkyNetUdpServer(new SerializerService());
 
-            var task = server.Start();
+            var tcpTask = server.Start();
+            var udpTask = udpServer.Start();
 
             var statusTask = Task.Run(() =>
             {
