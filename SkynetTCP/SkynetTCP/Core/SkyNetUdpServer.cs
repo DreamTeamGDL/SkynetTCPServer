@@ -8,6 +8,7 @@ using System.Linq;
 
 using SkynetTCP.Models;
 using SkynetTCP.Services.Interfaces;
+using System.Net.NetworkInformation;
 
 namespace SkynetTCP.Core
 {
@@ -24,7 +25,19 @@ namespace SkynetTCP.Core
 
         public SkyNetUdpServer(ISerializerService serializer)
         {
-            _serializer = serializer;   
+            _serializer = serializer;
+            myIP = Dns.GetHostName();
+        }
+
+        private IPAddress GetIPAddress()
+        {
+            var ping = new Ping();
+            var replay = ping.Send(Dns.GetHostName());
+            if (replay.Status == IPStatus.Success)
+            {
+                return replay.Address;
+            }
+            return null;
         }
 
         public async Task Start()
