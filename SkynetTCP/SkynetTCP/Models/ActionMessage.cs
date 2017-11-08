@@ -4,7 +4,7 @@ using System.Text;
 
 namespace SkynetTCP.Models
 {
-    class ActionMessage
+    public class ActionMessage
     {
         public ACTIONS Action { get; set; }
         public string Name { get; set; }

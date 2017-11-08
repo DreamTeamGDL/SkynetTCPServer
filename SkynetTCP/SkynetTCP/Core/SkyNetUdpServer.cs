@@ -8,7 +8,6 @@ using System.Linq;
 
 using SkynetTCP.Models;
 using SkynetTCP.Services.Interfaces;
-using System.Net.NetworkInformation;
 
 namespace SkynetTCP.Core
 {
@@ -17,8 +16,8 @@ namespace SkynetTCP.Core
         private readonly int TCP_PORT = 25000;
         private UdpReceiveResult receivedByteData;
         private readonly ISerializerService _serializer;
-        private string myIP = Dns.GetHostAddresses(Dns.GetHostName()).Where(add => add.AddressFamily != AddressFamily.InterNetworkV6).First().ToString();
-        private readonly UdpClient client = new UdpClient(new IPEndPoint(IPAddress.Any, 25500))
+        private string myIP;
+        private UdpClient client = new UdpClient(new IPEndPoint(IPAddress.Any, 25500))
         {
             EnableBroadcast = true
         };
@@ -29,25 +28,18 @@ namespace SkynetTCP.Core
             myIP = Dns.GetHostName();
         }
 
-        private IPAddress GetIPAddress()
-        {
-            var ping = new Ping();
-            var replay = ping.Send(Dns.GetHostName());
-            if (replay.Status == IPStatus.Success)
-            {
-                return replay.Address;
-            }
-            return null;
-        }
+        public bool IsListening => client.Client.IsBound;
+
+        public EndPoint UdpEndpoint => client.Client.LocalEndPoint;
 
         public async Task Start()
         {
             try
             {
-                Console.WriteLine("Receiving UDP connection");
                 while (true)
                 {
                     receivedByteData = await client.ReceiveAsync();
+                    Console.WriteLine(receivedByteData.RemoteEndPoint);
                     var message = _serializer.Deserialize<ActionMessage>(receivedByteData.Buffer);
                     if (message.Action == ACTIONS.HELLO)
                     {
@@ -58,17 +50,20 @@ namespace SkynetTCP.Core
                             Do = TCP_PORT.ToString()
                         };
                         
-                        var datagram = _serializer.Serialize(connectAction);
-
-                        client.Connect(receivedByteData.RemoteEndPoint);
-                        await client.SendAsync(datagram, datagram.Length);
+                        using (var tempClient = new UdpClient())
+                        {
+                            var datagram = _serializer.Serialize(connectAction);
+                            tempClient.Connect(receivedByteData.RemoteEndPoint);
+                            await tempClient.SendAsync(datagram, datagram.Length);
+                            tempClient.Close();
+                        }
                     }
                 }
             }
             catch (Exception ex)
             {
                 Console.WriteLine(ex.Message);
-                throw;
+                throw ex;
             }
         }
     }

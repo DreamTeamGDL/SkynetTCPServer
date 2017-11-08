@@ -1,1 +1,0 @@
-scp -r ./bin/Debug/netcoreapp2.0/linux-arm/ pi@192.168.1.68:~/Skynet

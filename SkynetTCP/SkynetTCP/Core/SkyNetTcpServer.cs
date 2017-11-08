@@ -11,6 +11,7 @@ using System.Threading;
 
 using SkynetTCP.Models;
 using SkynetTCP.Services.Interfaces;
+using SkynetTCP.API;
 
 namespace SkynetTCP.Core
 {
@@ -21,8 +22,12 @@ namespace SkynetTCP.Core
         TcpListener tcpListener = new TcpListener(new IPEndPoint(IPAddress.Any, 25000));
         ConcurrentDictionary<string, NetworkStream> roomDic = new ConcurrentDictionary<string, NetworkStream>();
         IQueueClient queue;
+        SkynetClient skynet;
 
-        public SkyNetTcpServer(ISerializerService serializer, string queueName)
+        public SkyNetTcpServer(
+            ISerializerService serializer, 
+            string queueName,
+            string zoneID)
         {
             _serializer = serializer;
 
@@ -31,7 +36,13 @@ namespace SkynetTCP.Core
             {
                 AutoComplete = false
             });
+
+            skynet = new SkynetClient(zoneID);
         }
+
+        public bool IsListening => tcpListener.Server.IsBound;
+
+        public EndPoint EndPoint => tcpListener.Server.LocalEndPoint;
 
         public async Task Start()
         {
@@ -69,6 +80,8 @@ namespace SkynetTCP.Core
             {
                 var obj = _serializer.Deserialize<ActionMessage>(bytes);
 
+                bytes = new byte[256];
+
                 await ProcessMessage(obj, stream);
             }
         }
@@ -78,13 +91,21 @@ namespace SkynetTCP.Core
             switch (actionMessage?.Action)
             {
                 case ACTIONS.CONFIGURE:
-                    await SendConfig(actionMessage);
+                    await SendConfig(actionMessage, stream);
                     break;
                 case ACTIONS.CONNECT:
                     {
                         if(stream != null)
                         {
-                            roomDic.TryAdd(actionMessage.Name, stream);
+                            if(roomDic.TryAdd(actionMessage.Name, stream))
+                            {
+                                await SendToClient(new ActionMessage
+                                {
+                                    Action = ACTIONS.TELL,
+                                    Do = "",
+                                    Name = actionMessage.Name
+                                });
+                            }
                         }
                     }
                     break;
@@ -96,14 +117,22 @@ namespace SkynetTCP.Core
             }
         }
 
-        private Task GetConfig()
+        public Task SendToChris()
         {
-            throw new NotImplementedException();
+            return SendToClient(new ActionMessage
+            {
+                Action = ACTIONS.TELL,
+                Do = "LIGHT YAGAMI;TRUE",
+                Name = "Chris Rasp"
+            });
         }
 
-        private Task SendConfig(ActionMessage actionMessage)
+        private async Task SendConfig(ActionMessage actionMessage, NetworkStream stream)
         {
-            throw new NotImplementedException();
+            var config = await skynet.GetConfig(actionMessage.Name);
+
+            var buffer = _serializer.Serialize(config);
+            await stream.WriteAsync(buffer, 0, buffer.Length);
         }
 
         private async Task SendToClient(ActionMessage message)

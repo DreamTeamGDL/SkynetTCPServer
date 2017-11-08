@@ -4,7 +4,7 @@ using System.Text;
 
 namespace SkynetTCP.Models
 {
-    enum ACTIONS
+    public enum ACTIONS
     {
         CONNECT,
         TELL,

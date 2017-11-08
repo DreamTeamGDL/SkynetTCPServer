@@ -11,7 +11,7 @@ namespace SkynetTCP
     {
         static void Main(string[] args)
         {
-            var server = new SkyNetTcpServer(new SerializerService(), "Queue1");
+            var server = new SkyNetTcpServer(new SerializerService(), "Queue1", Guid.NewGuid().ToString());
             var udpServer = new SkyNetUdpServer(new SerializerService());
 
             var tcpTask = server.Start();
@@ -21,10 +21,20 @@ namespace SkynetTCP
             {
                 while (true)
                 {
-                    Console.WriteLine("Running");
+                    if (server.IsListening) Console.WriteLine($"TCP: Running and connected on {server.EndPoint.ToString()}");
+                    if (udpServer.IsListening) Console.WriteLine($"UDP: Running and connected on {udpServer.UdpEndpoint.ToString()}");
                     Thread.Sleep(TimeSpan.FromSeconds(5));
                 }
             });
+
+            /*
+            Console.ReadLine();
+            var awaiter = server.SendToChris().GetAwaiter();
+            awaiter.OnCompleted(() =>
+            {
+                Console.WriteLine("Sent");
+            });
+            */
 
             Thread.Sleep(Timeout.Infinite);
         }
