@@ -11,8 +11,6 @@ namespace SkynetTCP.Services
         public T Deserialize<T>(byte[] bytes)
         {
             var json = Encoding.UTF8.GetString(bytes, 0, bytes.Length);
-
-            Console.WriteLine(json);
             
             return JsonConvert.DeserializeObject<T>(json);
         }

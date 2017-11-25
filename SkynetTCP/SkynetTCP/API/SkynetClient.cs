@@ -12,31 +12,34 @@ namespace SkynetTCP.API
         private HttpClient _client;
         private string ZoneID { get; set; }
 
-        public SkynetClient(string zoneId)
+        public SkynetClient()
         {
             _client = new HttpClient
             {
-                BaseAddress = new Uri("http://skynetgdl.azurewebsites.net/")
+                BaseAddress = new Uri("https://skynetgdl.azurewebsites.net/")
             };
+        }
 
-            ZoneID = zoneId;
+        public async Task GetZoneID(string macAddress)
+        {
+            var response = await _client.GetAsync($"/api/config/{macAddress}");
+            var zoneConfig = JsonConvert.DeserializeObject<MainConfig>(await response.Content.ReadAsStringAsync());
+            ZoneID = zoneConfig.ZoneID.ToString();
         }
 
         public async Task<Configuration> GetConfig(string macAddress)
         {
-            return await Task.FromResult(new Configuration()
-            {
-                ClientName = "Chris Rasp",
-                PinMap =
-                {
-                    { "LIGHT YAGAMI", 12 }
-                }
-            });
-
-            /*
             var response = await _client.GetAsync($"/api/config/{ZoneID}/{macAddress}");
             return JsonConvert.DeserializeObject<Configuration>(await response.Content.ReadAsStringAsync());
-            */
+        }
+
+        public async Task<bool> PushUpdate(string name, string action)
+        {
+            var json = JsonConvert.SerializeObject(new { Action = action });
+            var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+            var response = await _client.PostAsync($"/api/devices/{name}", content);
+            return response.IsSuccessStatusCode;
         }
     }
 
@@ -44,5 +47,11 @@ namespace SkynetTCP.API
     {
         public string ClientName { get; set; }
         public Dictionary<string, int> PinMap { get; set; } = new Dictionary<string, int>();
+    }
+
+    public class MainConfig
+    {
+        public Guid ZoneID { get; set; }
+        public string MacAddress { get; set; }
     }
 }

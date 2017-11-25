@@ -9,6 +9,7 @@ namespace SkynetTCP.Models
         CONNECT,
         TELL,
         HELLO,
-        CONFIGURE
+        CONFIGURE,
+        ACKNOWLEDGE
     }
 }
