@@ -11,7 +11,7 @@ namespace UDPTester
 {
     class Program
     {
-        static UdpClient _client = new UdpClient(new IPEndPoint(IPAddress.Any, 0))
+        static UdpClient _client = new UdpClient()
         {
             EnableBroadcast = true
         };
@@ -28,13 +28,20 @@ namespace UDPTester
             var serializer = new SerializerService();
             var bytes = serializer.Serialize(message);
 
-            Console.WriteLine(IPAddress.Broadcast);
+            var task = _client.SendAsync(
+                bytes, 
+                bytes.Length, 
+                new IPEndPoint(IPAddress.Parse("192.168.1.255"), 25500))
+                .GetAwaiter();
 
-            var task = _client.SendAsync(bytes, bytes.Length, new IPEndPoint(IPAddress.Broadcast, 25500)).GetAwaiter();
             task.OnCompleted(() =>
             {
                 Console.WriteLine("Sent first message");
-                var response = _client.ReceiveAsync().GetAwaiter();
+
+                var response = _client
+                .ReceiveAsync()
+                .GetAwaiter();
+
                 response.OnCompleted(() =>
                 {
                     var result = response.GetResult();
