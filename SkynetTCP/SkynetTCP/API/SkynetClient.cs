@@ -23,6 +23,7 @@ namespace SkynetTCP.API
         public async Task GetZoneID(string macAddress)
         {
             var response = await _client.GetAsync($"/api/config/{macAddress}");
+            var json = await response.Content.ReadAsStringAsync();
             var zoneConfig = JsonConvert.DeserializeObject<MainConfig>(await response.Content.ReadAsStringAsync());
             ZoneID = zoneConfig.ZoneID.ToString();
         }
